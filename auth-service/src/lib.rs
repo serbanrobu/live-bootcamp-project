@@ -7,10 +7,9 @@ use axum::{
     serve::Serve,
     Json, Router,
 };
-use domain::AuthAPIError;
+use domain::{AuthAPIError, UserStore};
 use routes::{login, logout, signup, verify_2fa, verify_token};
 use serde::{Deserialize, Serialize};
-use services::hashmap_user_store::HashmapUserStore;
 use tokio::sync::RwLock;
 use tower_http::services::ServeDir;
 
@@ -18,15 +17,22 @@ mod domain;
 pub mod routes;
 pub mod services;
 
-pub type UserStoreType = Arc<RwLock<HashmapUserStore>>;
+pub type UserStoreType<UserStoreImpl> = Arc<RwLock<UserStoreImpl>>;
 
-#[derive(Clone)]
-pub struct AppState {
-    pub user_store: UserStoreType,
+pub struct AppState<UserStoreImpl> {
+    pub user_store: UserStoreType<UserStoreImpl>,
 }
 
-impl AppState {
-    pub fn new(user_store: UserStoreType) -> Self {
+impl<UserStoreImpl> Clone for AppState<UserStoreImpl> {
+    fn clone(&self) -> Self {
+        Self {
+            user_store: self.user_store.clone(),
+        }
+    }
+}
+
+impl<UserStoreImpl> AppState<UserStoreImpl> {
+    pub fn new(user_store: UserStoreType<UserStoreImpl>) -> Self {
         Self { user_store }
     }
 }
@@ -40,7 +46,13 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build(app_state: AppState, address: &str) -> Result<Self, Box<dyn Error>> {
+    pub async fn build<UserStoreImpl>(
+        app_state: AppState<UserStoreImpl>,
+        address: &str,
+    ) -> Result<Self, Box<dyn Error>>
+    where
+        UserStoreImpl: UserStore + Send + Sync + 'static,
+    {
         let router = Router::new()
             .nest_service("/", ServeDir::new("assets"))
             .route("/signup", post(signup))
