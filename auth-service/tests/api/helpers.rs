@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use auth_service::{services::hashmap_user_store::HashmapUserStore, AppState, Application};
 use reqwest::header::COOKIE;
+use serde::Serialize;
 use uuid::Uuid;
 
 pub struct TestApp {
@@ -53,10 +54,13 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
-    pub async fn post_login(&self) -> reqwest::Response {
+    pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: Serialize,
+    {
         self.http_client
             .post(format!("{}/login", &self.address))
-            .body(r#"{ "email": "user@example.com", "password": "string" }"#)
+            .json(body)
             .send()
             .await
             .expect("Failed to execute request.")
