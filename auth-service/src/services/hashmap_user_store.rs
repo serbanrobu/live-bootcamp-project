@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use axum::async_trait;
+use async_trait::async_trait;
 
 use crate::domain::{Email, Password, User, UserStore, UserStoreError};
 

@@ -10,12 +10,13 @@ use axum::{
 use domain::{AuthAPIError, UserStore};
 use routes::{login, logout, signup, verify_2fa, verify_token};
 use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
+use tokio::{net::TcpListener, sync::RwLock};
 use tower_http::services::ServeDir;
 
 mod domain;
 pub mod routes;
 pub mod services;
+pub mod utils;
 
 pub type UserStoreType<UserStoreImpl> = Arc<RwLock<UserStoreImpl>>;
 
@@ -39,7 +40,7 @@ impl<UserStoreImpl> AppState<UserStoreImpl> {
 
 // This struct encapsulates our application-related logic.
 pub struct Application {
-    server: Serve<Router, Router>,
+    server: Serve<TcpListener, Router, Router>,
     // address is exposed as a public field
     // so we have access to it in tests.
     pub address: String,
@@ -54,7 +55,7 @@ impl Application {
         UserStoreImpl: UserStore + Send + Sync + 'static,
     {
         let router = Router::new()
-            .nest_service("/", ServeDir::new("assets"))
+            .fallback_service(ServeDir::new("assets"))
             .route("/signup", post(signup))
             .route("/login", post(login))
             .route("/verify-2fa", post(verify_2fa))
@@ -62,7 +63,7 @@ impl Application {
             .route("/verify-token", post(verify_token))
             .with_state(app_state);
 
-        let listener = tokio::net::TcpListener::bind(address).await?;
+        let listener = TcpListener::bind(address).await?;
         let address = listener.local_addr()?.to_string();
         let server = axum::serve(listener, router);
         Ok(Self { server, address })

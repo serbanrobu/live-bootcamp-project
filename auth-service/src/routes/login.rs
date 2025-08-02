@@ -1,15 +1,18 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum_extra::extract::CookieJar;
 use serde::Deserialize;
 
 use crate::{
     domain::{AuthAPIError, Email, Password, UserStore},
+    utils::auth::generate_auth_cookie,
     AppState,
 };
 
 pub async fn login<UserStoreImpl>(
     State(state): State<AppState<UserStoreImpl>>,
+    jar: CookieJar,
     Json(request): Json<LoginRequest>,
-) -> Result<impl IntoResponse, AuthAPIError>
+) -> Result<(CookieJar, impl IntoResponse), AuthAPIError>
 where
     UserStoreImpl: UserStore,
 {
@@ -30,7 +33,9 @@ where
         .await
         .map_err(|_| AuthAPIError::IncorrectCredentials)?;
 
-    Ok(StatusCode::OK)
+    let auth_cookie = generate_auth_cookie(&email).map_err(|_| AuthAPIError::UnexpectedError)?;
+    let updated_jar = jar.add(auth_cookie);
+    Ok((updated_jar, StatusCode::OK))
 }
 
 #[derive(Deserialize)]
