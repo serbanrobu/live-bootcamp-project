@@ -1,7 +1,7 @@
 use std::{error::Error, sync::Arc};
 
 use axum::{
-    http::StatusCode,
+    http::{Method, StatusCode},
     response::{IntoResponse, Response},
     routing::post,
     serve::Serve,
@@ -11,9 +11,10 @@ use domain::{AuthAPIError, UserStore};
 use routes::{login, logout, signup, verify_2fa, verify_token};
 use serde::{Deserialize, Serialize};
 use tokio::{net::TcpListener, sync::RwLock};
-use tower_http::services::ServeDir;
+use tower_http::{cors::CorsLayer, services::ServeDir};
+use utils::constants::AUTH_SERVICE_IP;
 
-mod domain;
+pub mod domain;
 pub mod routes;
 pub mod services;
 pub mod utils;
@@ -54,6 +55,16 @@ impl Application {
     where
         UserStoreImpl: UserStore + Send + Sync + 'static,
     {
+        let allowed_origins = [
+            "http://localhost:8000".parse()?,
+            format!("http://{}:8000", AUTH_SERVICE_IP.as_str()).parse()?,
+        ];
+
+        let cors = CorsLayer::new()
+            .allow_methods([Method::GET, Method::POST])
+            .allow_credentials(true)
+            .allow_origin(allowed_origins);
+
         let router = Router::new()
             .fallback_service(ServeDir::new("assets"))
             .route("/signup", post(signup))
@@ -61,7 +72,8 @@ impl Application {
             .route("/verify-2fa", post(verify_2fa))
             .route("/logout", post(logout))
             .route("/verify-token", post(verify_token))
-            .with_state(app_state);
+            .with_state(app_state)
+            .layer(cors);
 
         let listener = TcpListener::bind(address).await?;
         let address = listener.local_addr()?.to_string();
@@ -91,6 +103,8 @@ impl IntoResponse for AuthAPIError {
             AuthAPIError::IncorrectCredentials => {
                 (StatusCode::UNAUTHORIZED, "Incorrect credentials")
             }
+            AuthAPIError::MissingToken => (StatusCode::BAD_REQUEST, "Missing token"),
+            AuthAPIError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid token"),
         };
         let body = Json(ErrorResponse {
             error: error_message.to_string(),

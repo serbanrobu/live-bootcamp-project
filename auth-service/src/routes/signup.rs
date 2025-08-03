@@ -26,6 +26,8 @@ where
         _ => AuthAPIError::UnexpectedError,
     })?;
 
+    drop(user_store);
+
     let response = Json(SignupResponse {
         message: "User created successfully!".to_string(),
     });

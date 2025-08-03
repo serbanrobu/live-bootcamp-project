@@ -21,7 +21,7 @@ where
     let password =
         Password::parse(request.password).map_err(|_| AuthAPIError::InvalidCredentials)?;
 
-    let user_store = &state.user_store.read().await;
+    let user_store = state.user_store.read().await;
 
     user_store
         .validate_user(&email, &password)
@@ -33,6 +33,7 @@ where
         .await
         .map_err(|_| AuthAPIError::IncorrectCredentials)?;
 
+    drop(user_store);
     let auth_cookie = generate_auth_cookie(&email).map_err(|_| AuthAPIError::UnexpectedError)?;
     let updated_jar = jar.add(auth_cookie);
     Ok((updated_jar, StatusCode::OK))

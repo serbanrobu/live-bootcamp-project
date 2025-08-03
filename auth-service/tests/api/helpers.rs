@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use auth_service::{services::hashmap_user_store::HashmapUserStore, AppState, Application};
-use reqwest::header::COOKIE;
+use auth_service::{
+    services::hashmap_user_store::HashmapUserStore, utils::constants::test, AppState, Application,
+};
+use reqwest::cookie::Jar;
 use serde::Serialize;
 use uuid::Uuid;
 
 pub struct TestApp {
     pub address: String,
+    pub cookie_jar: Arc<Jar>,
     pub http_client: reqwest::Client,
 }
 
@@ -15,7 +18,7 @@ impl TestApp {
         let user_store = HashmapUserStore::default();
         let app_state = AppState::new(Arc::new(user_store.into()));
 
-        let app = Application::build(app_state, "127.0.0.1:0")
+        let app = Application::build(app_state, test::APP_ADDRESS)
             .await
             .expect("Failed to build app");
 
@@ -26,10 +29,16 @@ impl TestApp {
         #[allow(clippy::let_underscore_future)]
         let _ = tokio::spawn(app.run());
 
-        let http_client = reqwest::Client::new();
+        let cookie_jar = Arc::new(Jar::default());
+
+        let http_client = reqwest::Client::builder()
+            .cookie_provider(cookie_jar.clone())
+            .build()
+            .unwrap();
 
         Self {
             address,
+            cookie_jar,
             http_client,
         }
     }
@@ -69,7 +78,6 @@ impl TestApp {
     pub async fn post_logout(&self) -> reqwest::Response {
         self.http_client
             .post(format!("{}/logout", &self.address))
-            .header(COOKIE, "jwt=string")
             .send()
             .await
             .expect("Failed to execute request.")
