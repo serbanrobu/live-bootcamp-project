@@ -4,9 +4,9 @@ use validator::ValidateLength;
 pub struct Password(String);
 
 impl Password {
-    pub fn parse(password: String) -> Result<Self, ()> {
+    pub fn parse(password: String) -> Result<Self, String> {
         if !password.validate_length(Some(8), Some(64), None) {
-            return Err(());
+            return Err(format!("{password} is not a valid password"));
         }
 
         Ok(Self(password))

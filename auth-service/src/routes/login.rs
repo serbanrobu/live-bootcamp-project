@@ -8,8 +8,8 @@ use crate::{
     AppState,
 };
 
-pub async fn login<UserStoreImpl>(
-    State(state): State<AppState<UserStoreImpl>>,
+pub async fn login<UserStoreImpl, BannedTokenStoreImpl>(
+    State(state): State<AppState<UserStoreImpl, BannedTokenStoreImpl>>,
     jar: CookieJar,
     Json(request): Json<LoginRequest>,
 ) -> Result<(CookieJar, impl IntoResponse), AuthAPIError>

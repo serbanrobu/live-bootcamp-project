@@ -1,12 +1,20 @@
-use axum::{http::StatusCode, response::IntoResponse, Json};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::Deserialize;
 
-use crate::{domain::AuthAPIError, utils::auth::validate_token};
+use crate::{
+    domain::{AuthAPIError, BannedTokenStore},
+    utils::auth::validate_token,
+    AppState,
+};
 
-pub async fn verify_token(
+pub async fn verify_token<UserStoreImpl, BannedTokenStoreImpl>(
+    State(state): State<AppState<UserStoreImpl, BannedTokenStoreImpl>>,
     Json(request): Json<VerifyTokenRequest>,
-) -> Result<impl IntoResponse, AuthAPIError> {
-    validate_token(&request.token)
+) -> Result<impl IntoResponse, AuthAPIError>
+where
+    BannedTokenStoreImpl: BannedTokenStore,
+{
+    validate_token(&request.token, state.banned_token_store.clone())
         .await
         .map_err(|_| AuthAPIError::InvalidToken)?;
 

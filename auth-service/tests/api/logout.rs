@@ -1,6 +1,9 @@
 use auth_service::{
-    domain::Email,
-    utils::{auth::generate_auth_cookie, constants::JWT_COOKIE_NAME},
+    domain::{BannedTokenStore, Email},
+    utils::{
+        auth::{create_auth_cookie, generate_auth_cookie, generate_auth_token},
+        constants::JWT_COOKIE_NAME,
+    },
     ErrorResponse,
 };
 use reqwest::Url;
@@ -11,8 +14,10 @@ use crate::helpers::TestApp;
 async fn should_return_200_if_valid_jwt_cookie() {
     let app = TestApp::new().await;
 
-    let cookie =
-        generate_auth_cookie(&Email::parse("john.doe@example.com".to_owned()).unwrap()).unwrap();
+    let token =
+        generate_auth_token(&Email::parse("john.doe@example.com".to_owned()).unwrap()).unwrap();
+
+    let cookie = create_auth_cookie(token.clone());
 
     app.cookie_jar.add_cookie_str(
         &format!("{cookie}; HttpOnly; SameSite=Lax; Secure; Path=/"),
@@ -21,6 +26,8 @@ async fn should_return_200_if_valid_jwt_cookie() {
 
     let response = app.post_logout().await;
     assert_eq!(response.status().as_u16(), 200);
+    let banned_token_store = app.banned_token_store.read().await;
+    assert!(banned_token_store.contains_token(&token).await.unwrap())
 }
 
 #[tokio::test]

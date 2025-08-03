@@ -6,8 +6,8 @@ use crate::{
     AppState,
 };
 
-pub async fn signup<UserStoreImpl>(
-    state: State<AppState<UserStoreImpl>>,
+pub async fn signup<UserStoreImpl, BannedTokenStoreImpl>(
+    state: State<AppState<UserStoreImpl, BannedTokenStoreImpl>>,
     Json(request): Json<SignupRequest>,
 ) -> Result<impl IntoResponse, AuthAPIError>
 where

@@ -7,7 +7,7 @@ use axum::{
     serve::Serve,
     Json, Router,
 };
-use domain::{AuthAPIError, UserStore};
+use domain::{AuthAPIError, BannedTokenStore, UserStore};
 use routes::{login, logout, signup, verify_2fa, verify_token};
 use serde::{Deserialize, Serialize};
 use tokio::{net::TcpListener, sync::RwLock};
@@ -21,21 +21,31 @@ pub mod utils;
 
 pub type UserStoreType<UserStoreImpl> = Arc<RwLock<UserStoreImpl>>;
 
-pub struct AppState<UserStoreImpl> {
+pub type BannedTokenStoreType<BannedTokenStoreImpl> = Arc<RwLock<BannedTokenStoreImpl>>;
+
+pub struct AppState<UserStoreImpl, BannedTokenStoreImpl> {
     pub user_store: UserStoreType<UserStoreImpl>,
+    pub banned_token_store: BannedTokenStoreType<BannedTokenStoreImpl>,
 }
 
-impl<UserStoreImpl> Clone for AppState<UserStoreImpl> {
+impl<UserStoreImpl, BannedTokenStoreImpl> Clone for AppState<UserStoreImpl, BannedTokenStoreImpl> {
     fn clone(&self) -> Self {
         Self {
             user_store: self.user_store.clone(),
+            banned_token_store: self.banned_token_store.clone(),
         }
     }
 }
 
-impl<UserStoreImpl> AppState<UserStoreImpl> {
-    pub fn new(user_store: UserStoreType<UserStoreImpl>) -> Self {
-        Self { user_store }
+impl<UserStoreImpl, BannedTokenStoreImpl> AppState<UserStoreImpl, BannedTokenStoreImpl> {
+    pub fn new(
+        user_store: UserStoreType<UserStoreImpl>,
+        banned_token_store: BannedTokenStoreType<BannedTokenStoreImpl>,
+    ) -> Self {
+        Self {
+            user_store,
+            banned_token_store,
+        }
     }
 }
 
@@ -48,12 +58,13 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build<UserStoreImpl>(
-        app_state: AppState<UserStoreImpl>,
+    pub async fn build<UserStoreImpl, BannedTokenStoreImpl>(
+        app_state: AppState<UserStoreImpl, BannedTokenStoreImpl>,
         address: &str,
     ) -> Result<Self, Box<dyn Error>>
     where
         UserStoreImpl: UserStore + Send + Sync + 'static,
+        BannedTokenStoreImpl: BannedTokenStore + Send + Sync + 'static,
     {
         let allowed_origins = [
             "http://localhost:8000".parse()?,
