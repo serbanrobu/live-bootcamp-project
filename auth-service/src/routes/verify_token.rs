@@ -7,14 +7,14 @@ use crate::{
     AppState,
 };
 
-pub async fn verify_token<UserStoreImpl, BannedTokenStoreImpl>(
-    State(state): State<AppState<UserStoreImpl, BannedTokenStoreImpl>>,
+pub async fn verify_token<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>(
+    State(state): State<AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>>,
     Json(request): Json<VerifyTokenRequest>,
 ) -> Result<impl IntoResponse, AuthAPIError>
 where
     BannedTokenStoreImpl: BannedTokenStore,
 {
-    validate_token(&request.token, state.banned_token_store.clone())
+    validate_token(&request.token, &state.banned_token_store)
         .await
         .map_err(|_| AuthAPIError::InvalidToken)?;
 

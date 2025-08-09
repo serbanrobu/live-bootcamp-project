@@ -1,4 +1,4 @@
-use std::{error::Error, sync::Arc};
+use std::error::Error;
 
 use axum::{
     http::{Method, StatusCode},
@@ -10,44 +10,17 @@ use axum::{
 use domain::{AuthAPIError, BannedTokenStore, UserStore};
 use routes::{login, logout, signup, verify_2fa, verify_token};
 use serde::{Deserialize, Serialize};
-use tokio::{net::TcpListener, sync::RwLock};
+use tokio::net::TcpListener;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use utils::constants::AUTH_SERVICE_IP;
 
+use crate::{app_state::AppState, domain::TwoFACodeStore};
+
+pub mod app_state;
 pub mod domain;
 pub mod routes;
 pub mod services;
 pub mod utils;
-
-pub type UserStoreType<UserStoreImpl> = Arc<RwLock<UserStoreImpl>>;
-
-pub type BannedTokenStoreType<BannedTokenStoreImpl> = Arc<RwLock<BannedTokenStoreImpl>>;
-
-pub struct AppState<UserStoreImpl, BannedTokenStoreImpl> {
-    pub user_store: UserStoreType<UserStoreImpl>,
-    pub banned_token_store: BannedTokenStoreType<BannedTokenStoreImpl>,
-}
-
-impl<UserStoreImpl, BannedTokenStoreImpl> Clone for AppState<UserStoreImpl, BannedTokenStoreImpl> {
-    fn clone(&self) -> Self {
-        Self {
-            user_store: self.user_store.clone(),
-            banned_token_store: self.banned_token_store.clone(),
-        }
-    }
-}
-
-impl<UserStoreImpl, BannedTokenStoreImpl> AppState<UserStoreImpl, BannedTokenStoreImpl> {
-    pub fn new(
-        user_store: UserStoreType<UserStoreImpl>,
-        banned_token_store: BannedTokenStoreType<BannedTokenStoreImpl>,
-    ) -> Self {
-        Self {
-            user_store,
-            banned_token_store,
-        }
-    }
-}
 
 // This struct encapsulates our application-related logic.
 pub struct Application {
@@ -58,13 +31,14 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build<UserStoreImpl, BannedTokenStoreImpl>(
-        app_state: AppState<UserStoreImpl, BannedTokenStoreImpl>,
+    pub async fn build<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>(
+        app_state: AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>,
         address: &str,
     ) -> Result<Self, Box<dyn Error>>
     where
         UserStoreImpl: UserStore + Send + Sync + 'static,
         BannedTokenStoreImpl: BannedTokenStore + Send + Sync + 'static,
+        TwoFACodeStoreImpl: TwoFACodeStore + Send + Sync + 'static,
     {
         let allowed_origins = [
             "http://localhost:8000".parse()?,

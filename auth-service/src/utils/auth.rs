@@ -4,8 +4,8 @@ use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    app_state::BannedTokenStoreType,
     domain::{email::Email, BannedTokenStore},
-    BannedTokenStoreType,
 };
 
 use super::constants::{JWT_COOKIE_NAME, JWT_SECRET};
@@ -62,7 +62,7 @@ pub fn generate_auth_token(email: &Email) -> Result<String, GenerateTokenError> 
 // Check if JWT auth token is valid by decoding it using the JWT secret
 pub async fn validate_token<BannedTokenStoreImpl>(
     token: &str,
-    banned_token_store: BannedTokenStoreType<BannedTokenStoreImpl>,
+    banned_token_store: &BannedTokenStoreType<BannedTokenStoreImpl>,
 ) -> Result<Claims, jsonwebtoken::errors::Error>
 where
     BannedTokenStoreImpl: BannedTokenStore,
@@ -140,7 +140,7 @@ mod tests {
         let email = Email::parse("test@example.com".to_owned()).unwrap();
         let token = generate_auth_token(&email).unwrap();
 
-        let result = validate_token::<HashsetBannedTokenStore>(&token, Default::default())
+        let result = validate_token::<HashsetBannedTokenStore>(&token, &Default::default())
             .await
             .unwrap();
 
@@ -157,7 +157,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_token_with_invalid_token() {
         let token = "invalid_token".to_owned();
-        let result = validate_token::<HashsetBannedTokenStore>(&token, Default::default()).await;
+        let result = validate_token::<HashsetBannedTokenStore>(&token, &Default::default()).await;
         assert!(result.is_err());
     }
 
@@ -166,7 +166,7 @@ mod tests {
         let email = Email::parse("test@example.com".to_owned()).unwrap();
         let token = generate_auth_token(&email).unwrap();
         let banned_token_store = HashsetBannedTokenStore::from([token.clone()]);
-        let result = validate_token(&token, Arc::new(banned_token_store.into())).await;
+        let result = validate_token(&token, &Arc::new(banned_token_store.into())).await;
         assert!(result.is_err());
     }
 }

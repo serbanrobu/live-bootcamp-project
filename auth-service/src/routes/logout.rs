@@ -7,8 +7,8 @@ use crate::{
     AppState,
 };
 
-pub async fn logout<UserStoreImpl, BannedTokenStoreImpl>(
-    State(state): State<AppState<UserStoreImpl, BannedTokenStoreImpl>>,
+pub async fn logout<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>(
+    State(state): State<AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>>,
     jar: CookieJar,
 ) -> Result<(CookieJar, impl IntoResponse), AuthAPIError>
 where
@@ -17,7 +17,7 @@ where
     let cookie = jar.get(JWT_COOKIE_NAME).ok_or(AuthAPIError::MissingToken)?;
     let token = cookie.value().to_owned();
 
-    validate_token(&token, state.banned_token_store.clone())
+    validate_token(&token, &state.banned_token_store)
         .await
         .map_err(|_| AuthAPIError::InvalidToken)?;
 
