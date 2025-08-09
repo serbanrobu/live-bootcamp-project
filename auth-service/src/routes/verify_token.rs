@@ -7,8 +7,15 @@ use crate::{
     AppState,
 };
 
-pub async fn verify_token<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>(
-    State(state): State<AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>>,
+pub async fn verify_token<
+    UserStoreImpl,
+    BannedTokenStoreImpl,
+    TwoFACodeStoreImpl,
+    EmailClientImpl,
+>(
+    State(state): State<
+        AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>,
+    >,
     Json(request): Json<VerifyTokenRequest>,
 ) -> Result<impl IntoResponse, AuthAPIError>
 where

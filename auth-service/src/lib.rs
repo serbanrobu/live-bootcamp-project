@@ -14,7 +14,10 @@ use tokio::net::TcpListener;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use utils::constants::AUTH_SERVICE_IP;
 
-use crate::{app_state::AppState, domain::TwoFACodeStore};
+use crate::{
+    app_state::AppState,
+    domain::{EmailClient, TwoFACodeStore},
+};
 
 pub mod app_state;
 pub mod domain;
@@ -31,14 +34,20 @@ pub struct Application {
 }
 
 impl Application {
-    pub async fn build<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>(
-        app_state: AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>,
+    pub async fn build<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>(
+        app_state: AppState<
+            UserStoreImpl,
+            BannedTokenStoreImpl,
+            TwoFACodeStoreImpl,
+            EmailClientImpl,
+        >,
         address: &str,
     ) -> Result<Self, Box<dyn Error>>
     where
         UserStoreImpl: UserStore + Send + Sync + 'static,
         BannedTokenStoreImpl: BannedTokenStore + Send + Sync + 'static,
         TwoFACodeStoreImpl: TwoFACodeStore + Send + Sync + 'static,
+        EmailClientImpl: EmailClient + Send + Sync + 'static,
     {
         let allowed_origins = [
             "http://localhost:8000".parse()?,

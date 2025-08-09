@@ -7,8 +7,10 @@ use crate::{
     AppState,
 };
 
-pub async fn logout<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>(
-    State(state): State<AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>>,
+pub async fn logout<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>(
+    State(state): State<
+        AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>,
+    >,
     jar: CookieJar,
 ) -> Result<(CookieJar, impl IntoResponse), AuthAPIError>
 where

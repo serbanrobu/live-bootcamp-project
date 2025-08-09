@@ -3,23 +3,26 @@ use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    app_state::TwoFACodeStoreType,
+    app_state::{EmailClientType, TwoFACodeStoreType},
     domain::{
-        data_stores::LoginAttemptId, AuthAPIError, Email, Password, TwoFACode, TwoFACodeStore,
-        UserStore,
+        data_stores::LoginAttemptId, AuthAPIError, Email, EmailClient, Password, TwoFACode,
+        TwoFACodeStore, UserStore,
     },
     utils::auth::generate_auth_cookie,
     AppState,
 };
 
-pub async fn login<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>(
-    State(state): State<AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl>>,
+pub async fn login<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>(
+    State(state): State<
+        AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>,
+    >,
     jar: CookieJar,
     Json(request): Json<LoginRequest>,
 ) -> Result<(StatusCode, CookieJar, Json<LoginResponse>), AuthAPIError>
 where
     UserStoreImpl: UserStore,
     TwoFACodeStoreImpl: TwoFACodeStore,
+    EmailClientImpl: EmailClient,
 {
     let email = Email::parse(request.email).map_err(|_| AuthAPIError::InvalidCredentials)?;
 
@@ -41,29 +44,46 @@ where
     drop(user_store);
 
     if user.requires_2fa {
-        handle_2fa(user.email, &state.two_fa_code_store, jar).await
+        handle_2fa(
+            &user.email,
+            &state.two_fa_code_store,
+            &state.email_client,
+            jar,
+        )
+        .await
     } else {
         handle_no_2fa(&user.email, jar).await
     }
 }
 
-async fn handle_2fa<TwoFACodeStoreImpl>(
-    email: Email,
+async fn handle_2fa<TwoFACodeStoreImpl, EmailClientImpl>(
+    email: &Email,
     two_fa_code_store: &TwoFACodeStoreType<TwoFACodeStoreImpl>,
+    email_client: &EmailClientType<EmailClientImpl>,
     jar: CookieJar,
 ) -> Result<(StatusCode, CookieJar, Json<LoginResponse>), AuthAPIError>
 where
     TwoFACodeStoreImpl: TwoFACodeStore,
+    EmailClientImpl: EmailClient,
 {
     let login_attempt_id = LoginAttemptId::default();
     let two_fa_code = TwoFACode::default();
     let mut lock = two_fa_code_store.write().await;
 
-    lock.add_code(email, login_attempt_id.clone(), two_fa_code)
+    lock.add_code(email.clone(), login_attempt_id.clone(), two_fa_code.clone())
         .await
         .map_err(|_| AuthAPIError::UnexpectedError)?;
 
     drop(lock);
+
+    email_client
+        .send_email(
+            email,
+            "Two FA code",
+            &format!("Your two FA code is `{}`.", two_fa_code.as_ref()),
+        )
+        .await
+        .map_err(|_| AuthAPIError::UnexpectedError)?;
 
     Ok((
         StatusCode::PARTIAL_CONTENT,
