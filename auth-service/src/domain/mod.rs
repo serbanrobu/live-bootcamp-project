@@ -6,8 +6,8 @@ mod password;
 mod user;
 
 pub use data_stores::{
-    BannedTokenStore, BannedTokenStoreError, TwoFACode, TwoFACodeStore, TwoFACodeStoreError,
-    UserStore, UserStoreError,
+    BannedTokenStore, BannedTokenStoreError, LoginAttemptId, TwoFACode, TwoFACodeStore,
+    TwoFACodeStoreError, UserStore, UserStoreError,
 };
 pub use email::Email;
 pub use email_client::EmailClient;

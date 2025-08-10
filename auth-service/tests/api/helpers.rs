@@ -103,10 +103,13 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
-    pub async fn post_verify_2fa(&self) -> reqwest::Response {
+    pub async fn post_verify_2fa<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: Serialize,
+    {
         self.http_client
             .post(format!("{}/verify-2fa", &self.address))
-            .body(r#"{ "email": "user@example.com", "loginAttemptId": "string", "2FACode": "string" }"#)
+            .json(body)
             .send()
             .await
             .expect("Failed to execute request.")

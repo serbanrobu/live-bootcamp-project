@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use serde::Serialize;
 use uuid::Uuid;
 
 use super::{Email, Password, User};
@@ -54,7 +55,7 @@ pub enum TwoFACodeStoreError {
     UnexpectedError,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LoginAttemptId(String);
 
 impl LoginAttemptId {
@@ -82,7 +83,7 @@ impl AsRef<str> for LoginAttemptId {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct TwoFACode(String);
 
 impl TwoFACode {
