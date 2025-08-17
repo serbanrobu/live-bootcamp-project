@@ -12,7 +12,7 @@ use crate::helpers::TestApp;
 
 #[tokio::test]
 async fn should_return_200_if_valid_jwt_cookie() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
 
     let token =
         generate_auth_token(&Email::parse("john.doe@example.com".to_owned()).unwrap()).unwrap();
@@ -27,12 +27,14 @@ async fn should_return_200_if_valid_jwt_cookie() {
     let response = app.post_logout().await;
     assert_eq!(response.status().as_u16(), 200);
     let banned_token_store = app.banned_token_store.read().await;
-    assert!(banned_token_store.contains_token(&token).await.unwrap())
+    assert!(banned_token_store.contains_token(&token).await.unwrap());
+    drop(banned_token_store);
+    app.clean_up().await;
 }
 
 #[tokio::test]
 async fn should_return_400_if_logout_called_twice_in_a_row() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
 
     let cookie =
         generate_auth_cookie(&Email::parse("john.doe@example.com".to_owned()).unwrap()).unwrap();
@@ -54,11 +56,13 @@ async fn should_return_400_if_logout_called_twice_in_a_row() {
             .error,
         "Missing token".to_owned()
     );
+
+    app.clean_up().await;
 }
 
 #[tokio::test]
 async fn should_return_400_if_jwt_cookie_missing() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
     let response = app.post_logout().await;
     assert_eq!(response.status().as_u16(), 400);
 
@@ -70,11 +74,13 @@ async fn should_return_400_if_jwt_cookie_missing() {
             .error,
         "Missing token".to_owned()
     );
+
+    app.clean_up().await;
 }
 
 #[tokio::test]
 async fn should_return_401_if_invalid_token() {
-    let app = TestApp::new().await;
+    let mut app = TestApp::new().await;
 
     app.cookie_jar.add_cookie_str(
         &format!("{JWT_COOKIE_NAME}=invalid; HttpOnly; SameSite=Lax; Secure; Path=/"),
@@ -92,4 +98,6 @@ async fn should_return_401_if_invalid_token() {
             .error,
         "Invalid token".to_owned()
     );
+
+    app.clean_up().await;
 }
