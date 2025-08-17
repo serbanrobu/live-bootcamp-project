@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+argon2 = { version = "0.5.3", features = ["std"] }
 async-trait = "0.1.88"
 axum = "0.8.4"
 axum-extra = { version = "0.10.1", features = ["cookie"] }
@@ -16,6 +17,7 @@ lazy_static = "1.5.0"
 rand = "0.9.2"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
+sqlx = { version = "0.8.6", features = ["migrate", "postgres", "runtime-tokio-rustls"] }
 tokio = { version = "1.36", features = ["full"] }
 tower-http = { version = "0.6.6", features = ["cors", "fs"] }
 uuid = { version = "1.17.0", features = ["serde", "v4"] }

@@ -1,3 +1,5 @@
+use std::fmt;
+
 use validator::ValidateLength;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -16,6 +18,24 @@ impl Password {
 impl AsRef<str> for Password {
     fn as_ref(&self) -> &str {
         &self.0
+    }
+}
+
+impl Default for Password {
+    fn default() -> Self {
+        Self("\0\0\0\0\0\0\0\0".to_owned())
+    }
+}
+
+impl From<Password> for String {
+    fn from(value: Password) -> Self {
+        value.0
+    }
+}
+
+impl fmt::Display for Password {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
     }
 }
 
@@ -40,5 +60,10 @@ mod tests {
         }
 
         TestResult::from_bool(Password::parse(password).is_err())
+    }
+
+    #[test]
+    fn should_parse_default_password() {
+        assert!(Password::parse(Password::default().into()).is_ok())
     }
 }

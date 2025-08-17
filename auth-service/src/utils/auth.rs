@@ -52,7 +52,7 @@ pub fn generate_auth_token(email: &Email) -> Result<String, GenerateTokenError> 
         .try_into()
         .map_err(|_| GenerateTokenError::UnexpectedError)?;
 
-    let sub = email.as_ref().to_owned();
+    let sub = email.to_string();
 
     let claims = Claims { sub, exp };
 
@@ -102,7 +102,7 @@ pub struct Claims {
 mod tests {
     use std::sync::Arc;
 
-    use crate::services::hashset_banned_token_store::HashsetBannedTokenStore;
+    use crate::services::data_stores::HashsetBannedTokenStore;
 
     use super::*;
 

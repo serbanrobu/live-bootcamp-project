@@ -10,6 +10,7 @@ use axum::{
 use domain::{AuthAPIError, BannedTokenStore, UserStore};
 use routes::{login, logout, signup, verify_2fa, verify_token};
 use serde::{Deserialize, Serialize};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use tokio::net::TcpListener;
 use tower_http::{cors::CorsLayer, services::ServeDir};
 use utils::constants::AUTH_SERVICE_IP;
@@ -105,4 +106,8 @@ impl IntoResponse for AuthAPIError {
         });
         (status, body).into_response()
     }
+}
+
+pub async fn get_postgres_pool(url: &str) -> Result<PgPool, sqlx::Error> {
+    PgPoolOptions::new().max_connections(5).connect(url).await
 }
