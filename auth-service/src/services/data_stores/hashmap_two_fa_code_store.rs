@@ -42,13 +42,15 @@ impl TwoFACodeStore for HashmapTwoFACodeStore {
 
 #[cfg(test)]
 mod tests {
+    use fake::{faker::internet::en::FreeEmail, Fake};
+
     use super::*;
 
     #[tokio::test]
     async fn test_add_code() {
         let mut store = HashmapTwoFACodeStore::default();
         assert!(store.codes.is_empty());
-        let email = Email::parse("john.doe@example.com".to_owned()).unwrap();
+        let email = Email::parse(FreeEmail().fake()).unwrap();
         let login_attempt_id = LoginAttemptId::default();
         let code = TwoFACode::default();
 
@@ -62,7 +64,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_remove_code() {
-        let email = Email::parse("john.doe@example.com".to_owned()).unwrap();
+        let email = Email::parse(FreeEmail().fake()).unwrap();
         let login_attempt_id = LoginAttemptId::default();
         let code = TwoFACode::default();
 
@@ -76,7 +78,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_code() {
-        let email = Email::parse("john.doe@example.com".to_owned()).unwrap();
+        let email = Email::parse(FreeEmail().fake()).unwrap();
         let login_attempt_id = LoginAttemptId::default();
         let code = TwoFACode::default();
 

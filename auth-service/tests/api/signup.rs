@@ -1,11 +1,11 @@
 use auth_service::{routes::SignupResponse, ErrorResponse};
+use test_context::test_context;
 
 use crate::helpers::{get_random_email, TestApp};
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_201_if_valid_input() {
-    let mut app = TestApp::new().await;
-
+async fn should_return_201_if_valid_input(app: &mut TestApp) {
     let response = app
         .post_signup(&serde_json::json!({
             "password": "password123",
@@ -28,14 +28,11 @@ async fn should_return_201_if_valid_input() {
             .expect("Could not deserialize response body to UserBody"),
         expected_response
     );
-
-    app.clean_up().await;
 }
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_400_if_invalid_input() {
-    let mut app = TestApp::new().await;
-
+async fn should_return_400_if_invalid_input(app: &mut TestApp) {
     let input = [
         serde_json::json!({
             "password": "********",
@@ -67,14 +64,11 @@ async fn should_return_400_if_invalid_input() {
             "Invalid credentials".to_owned()
         );
     }
-
-    app.clean_up().await;
 }
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_409_if_email_already_exists() {
-    let mut app = TestApp::new().await;
-
+async fn should_return_409_if_email_already_exists(app: &mut TestApp) {
     let input = serde_json::json!({
         "password": "password123",
         "email": get_random_email(),
@@ -94,14 +88,11 @@ async fn should_return_409_if_email_already_exists() {
             .error,
         "User already exists".to_owned()
     );
-
-    app.clean_up().await;
 }
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_422_if_malformed_input() {
-    let mut app = TestApp::new().await;
-
+async fn should_return_422_if_malformed_input(app: &mut TestApp) {
     let random_email = get_random_email();
 
     let test_cases = [
@@ -138,6 +129,4 @@ async fn should_return_422_if_malformed_input() {
             "Failed for input: {test_case:?}"
         );
     }
-
-    app.clean_up().await;
 }

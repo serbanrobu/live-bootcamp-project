@@ -4,13 +4,13 @@ use auth_service::{
     utils::constants::JWT_COOKIE_NAME,
     ErrorResponse,
 };
+use test_context::test_context;
 
 use crate::helpers::{get_random_email, TestApp};
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_200_if_valid_credentials_and_2fa_disabled() {
-    let mut app = TestApp::new().await;
-
+async fn should_return_200_if_valid_credentials_and_2fa_disabled(app: &mut TestApp) {
     let random_email = get_random_email();
 
     let signup_body = serde_json::json!({
@@ -38,12 +38,11 @@ async fn should_return_200_if_valid_credentials_and_2fa_disabled() {
         .expect("No auth cookie found");
 
     assert!(!auth_cookie.value().is_empty());
-    app.clean_up().await;
 }
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_206_if_valid_credentials_and_2fa_enabled() {
-    let mut app = TestApp::new().await;
+async fn should_return_206_if_valid_credentials_and_2fa_enabled(app: &mut TestApp) {
     let random_email = Email::parse(get_random_email()).unwrap();
 
     let signup_body = serde_json::json!({
@@ -82,13 +81,11 @@ async fn should_return_206_if_valid_credentials_and_2fa_enabled() {
     drop(two_fa_code_store);
 
     assert_eq!(json_body.login_attempt_id, login_attempt_id.as_ref());
-    app.clean_up().await;
 }
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_400_if_invalid_input() {
-    let mut app = TestApp::new().await;
-
+async fn should_return_400_if_invalid_input(app: &mut TestApp) {
     let input = [
         serde_json::json!({
             "password": "********",
@@ -117,14 +114,11 @@ async fn should_return_400_if_invalid_input() {
             "Invalid credentials".to_owned()
         );
     }
-
-    app.clean_up().await;
 }
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_401_if_incorrect_credentials() {
-    let mut app = TestApp::new().await;
-
+async fn should_return_401_if_incorrect_credentials(app: &mut TestApp) {
     let input = serde_json::json!({
         "password": "password123",
         "email": get_random_email(),
@@ -143,14 +137,11 @@ async fn should_return_401_if_incorrect_credentials() {
             .error,
         "Incorrect credentials".to_owned()
     );
-
-    app.clean_up().await;
 }
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_422_if_malformed_credentials() {
-    let mut app = TestApp::new().await;
-
+async fn should_return_422_if_malformed_credentials(app: &mut TestApp) {
     let random_email = get_random_email();
 
     let test_cases = [
@@ -180,6 +171,4 @@ async fn should_return_422_if_malformed_credentials() {
             "Failed for input: {test_case:?}"
         );
     }
-
-    app.clean_up().await;
 }

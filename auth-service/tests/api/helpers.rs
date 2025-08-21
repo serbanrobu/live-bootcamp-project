@@ -2,12 +2,12 @@ use std::{str::FromStr, sync::Arc};
 
 use auth_service::{
     app_state::{AppState, BannedTokenStoreType, TwoFACodeStoreType},
-    get_postgres_pool,
+    get_postgres_pool, get_redis_client,
     services::{
-        data_stores::{HashmapTwoFACodeStore, HashsetBannedTokenStore, PostgresUserStore},
+        data_stores::{HashmapTwoFACodeStore, PostgresUserStore, RedisBannedTokenStore},
         mock_email_client::MockEmailClient,
     },
-    utils::constants::{test, DATABASE_URL},
+    utils::constants::{test, DATABASE_URL, REDIS_HOST_NAME},
     Application,
 };
 use reqwest::cookie::Jar;
@@ -16,6 +16,7 @@ use sqlx::{
     postgres::{PgConnectOptions, PgPoolOptions},
     Connection, Executor, PgConnection, PgPool,
 };
+use test_context::AsyncTestContext;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -23,10 +24,9 @@ pub struct TestApp {
     pub address: String,
     pub cookie_jar: Arc<Jar>,
     pub http_client: reqwest::Client,
-    pub banned_token_store: BannedTokenStoreType<HashsetBannedTokenStore>,
+    pub banned_token_store: BannedTokenStoreType<RedisBannedTokenStore>,
     pub two_fa_code_store: TwoFACodeStoreType<HashmapTwoFACodeStore>,
     pub db_name: String,
-    pub clean_up_called: bool,
 }
 
 impl TestApp {
@@ -34,7 +34,8 @@ impl TestApp {
         let pg_pool = configure_postgresql().await;
         let db_name = pg_pool.connect_options().get_database().unwrap().to_owned();
         let user_store = Arc::new(RwLock::new(PostgresUserStore::new(pg_pool)));
-        let banned_token_store = Arc::new(RwLock::new(HashsetBannedTokenStore::default()));
+        let redis_conn = Arc::new(RwLock::new(configure_redis()));
+        let banned_token_store = Arc::new(RwLock::new(RedisBannedTokenStore::new(redis_conn)));
         let two_fa_code_store = Arc::new(RwLock::new(HashmapTwoFACodeStore::default()));
         let email_client = Arc::new(MockEmailClient);
 
@@ -70,13 +71,11 @@ impl TestApp {
             banned_token_store,
             two_fa_code_store,
             db_name,
-            clean_up_called: false,
         }
     }
 
     pub async fn clean_up(&mut self) {
-        self.clean_up_called = true;
-        delete_database(&self.db_name).await
+        delete_database(&self.db_name).await;
     }
 
     pub async fn get_root(&self) -> reqwest::Response {
@@ -144,9 +143,13 @@ impl TestApp {
     }
 }
 
-impl Drop for TestApp {
-    fn drop(&mut self) {
-        assert!(self.clean_up_called);
+impl AsyncTestContext for TestApp {
+    async fn setup() -> TestApp {
+        TestApp::new().await
+    }
+
+    async fn teardown(mut self) {
+        self.clean_up().await
     }
 }
 
@@ -230,4 +233,11 @@ async fn delete_database(db_name: &str) {
         .execute(format!(r#"DROP DATABASE "{}";"#, db_name).as_str())
         .await
         .expect("Failed to drop the database.");
+}
+
+fn configure_redis() -> redis::Connection {
+    get_redis_client(REDIS_HOST_NAME.to_owned())
+        .expect("Failed to get Redis client")
+        .get_connection()
+        .expect("Failed to get Redis connection")
 }

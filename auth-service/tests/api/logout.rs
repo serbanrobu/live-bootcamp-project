@@ -6,16 +6,16 @@ use auth_service::{
     },
     ErrorResponse,
 };
+use fake::{faker::internet::en::FreeEmail, Fake};
 use reqwest::Url;
+use test_context::test_context;
 
 use crate::helpers::TestApp;
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_200_if_valid_jwt_cookie() {
-    let mut app = TestApp::new().await;
-
-    let token =
-        generate_auth_token(&Email::parse("john.doe@example.com".to_owned()).unwrap()).unwrap();
+async fn should_return_200_if_valid_jwt_cookie(app: &mut TestApp) {
+    let token = generate_auth_token(&Email::parse(FreeEmail().fake()).unwrap()).unwrap();
 
     let cookie = create_auth_cookie(token.clone());
 
@@ -28,16 +28,12 @@ async fn should_return_200_if_valid_jwt_cookie() {
     assert_eq!(response.status().as_u16(), 200);
     let banned_token_store = app.banned_token_store.read().await;
     assert!(banned_token_store.contains_token(&token).await.unwrap());
-    drop(banned_token_store);
-    app.clean_up().await;
 }
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_400_if_logout_called_twice_in_a_row() {
-    let mut app = TestApp::new().await;
-
-    let cookie =
-        generate_auth_cookie(&Email::parse("john.doe@example.com".to_owned()).unwrap()).unwrap();
+async fn should_return_400_if_logout_called_twice_in_a_row(app: &mut TestApp) {
+    let cookie = generate_auth_cookie(&Email::parse(FreeEmail().fake()).unwrap()).unwrap();
 
     app.cookie_jar.add_cookie_str(
         &format!("{cookie}; HttpOnly; SameSite=Lax; Secure; Path=/"),
@@ -56,13 +52,11 @@ async fn should_return_400_if_logout_called_twice_in_a_row() {
             .error,
         "Missing token".to_owned()
     );
-
-    app.clean_up().await;
 }
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_400_if_jwt_cookie_missing() {
-    let mut app = TestApp::new().await;
+async fn should_return_400_if_jwt_cookie_missing(app: &mut TestApp) {
     let response = app.post_logout().await;
     assert_eq!(response.status().as_u16(), 400);
 
@@ -74,14 +68,11 @@ async fn should_return_400_if_jwt_cookie_missing() {
             .error,
         "Missing token".to_owned()
     );
-
-    app.clean_up().await;
 }
 
+#[test_context(TestApp)]
 #[tokio::test]
-async fn should_return_401_if_invalid_token() {
-    let mut app = TestApp::new().await;
-
+async fn should_return_401_if_invalid_token(app: &mut TestApp) {
     app.cookie_jar.add_cookie_str(
         &format!("{JWT_COOKIE_NAME}=invalid; HttpOnly; SameSite=Lax; Secure; Path=/"),
         &Url::parse("http://127.0.0.1").expect("Failed to parse URL"),
@@ -98,6 +89,4 @@ async fn should_return_401_if_invalid_token() {
             .error,
         "Invalid token".to_owned()
     );
-
-    app.clean_up().await;
 }

@@ -6,6 +6,7 @@ lazy_static! {
     pub static ref AUTH_SERVICE_IP: String = set_auth_service_ip();
     pub static ref JWT_SECRET: String = set_token();
     pub static ref DATABASE_URL: String = set_database_url();
+    pub static ref REDIS_HOST_NAME: String = set_redis_host();
 }
 
 fn set_auth_service_ip() -> String {
@@ -41,13 +42,20 @@ fn set_database_url() -> String {
     secret
 }
 
+fn set_redis_host() -> String {
+    dotenv().ok();
+    std_env::var(env::REDIS_HOST_NAME_ENV_VAR).unwrap_or(DEFAULT_REDIS_HOSTNAME.to_owned())
+}
+
 pub mod env {
     pub const AUTH_SERVICE_IP_ENV_VAR: &str = "AUTH_SERVICE_IP";
     pub const JWT_SECRET_ENV_VAR: &str = "JWT_SECRET";
     pub const DATABASE_URL_ENV_VAR: &str = "DATABASE_URL";
+    pub const REDIS_HOST_NAME_ENV_VAR: &str = "REDIS_HOST_NAME";
 }
 
 pub const JWT_COOKIE_NAME: &str = "jwt";
+pub const DEFAULT_REDIS_HOSTNAME: &str = "127.0.0.1";
 
 pub mod prod {
     pub const APP_ADDRESS: &str = "0.0.0.0:3000";

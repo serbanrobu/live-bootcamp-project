@@ -27,7 +27,7 @@ where
     let mut banned_token_store = state.banned_token_store.write().await;
 
     banned_token_store
-        .insert_token(token)
+        .add_token(token)
         .await
         .map_err(|_| AuthAPIError::UnexpectedError)?;
 

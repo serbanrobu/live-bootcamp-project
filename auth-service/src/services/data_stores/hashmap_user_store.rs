@@ -44,6 +44,8 @@ impl UserStore for HashmapUserStore {
 
 #[cfg(test)]
 mod tests {
+    use fake::{faker::internet::en::FreeEmail, Fake};
+
     use super::*;
 
     #[tokio::test]
@@ -89,10 +91,7 @@ mod tests {
             .expect_err("should not validate user");
 
         store
-            .validate_user(
-                &Email::parse("john@example.com".to_owned()).unwrap(),
-                &user.password,
-            )
+            .validate_user(&Email::parse(FreeEmail().fake()).unwrap(), &user.password)
             .await
             .expect_err("should not validate user");
 
@@ -107,7 +106,7 @@ mod tests {
 
     fn new_example_user() -> User {
         User {
-            email: Email::parse("john.doe@example.com".to_owned()).unwrap(),
+            email: Email::parse(FreeEmail().fake()).unwrap(),
             password: Password::parse("********".to_owned()).unwrap(),
             requires_2fa: true,
         }

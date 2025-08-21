@@ -19,8 +19,9 @@ impl<const N: usize> From<[String; N]> for HashsetBannedTokenStore {
 
 #[async_trait]
 impl BannedTokenStore for HashsetBannedTokenStore {
-    async fn insert_token(&mut self, token: String) -> Result<bool, BannedTokenStoreError> {
-        Ok(self.tokens.insert(token))
+    async fn add_token(&mut self, token: String) -> Result<(), BannedTokenStoreError> {
+        self.tokens.insert(token);
+        Ok(())
     }
 
     async fn contains_token(&self, token: &str) -> Result<bool, BannedTokenStoreError> {
@@ -38,10 +39,10 @@ mod tests {
         let mut store = HashsetBannedTokenStore::default();
         assert!(store.tokens.is_empty());
 
-        assert!(store
-            .insert_token(token.clone())
+        store
+            .add_token(token.clone())
             .await
-            .expect("should insert token"));
+            .expect("should insert token");
 
         assert!(store.tokens.contains(&token));
     }
