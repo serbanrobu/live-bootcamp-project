@@ -102,6 +102,12 @@ impl Default for TwoFACode {
     }
 }
 
+impl From<TwoFACode> for String {
+    fn from(value: TwoFACode) -> Self {
+        value.0
+    }
+}
+
 impl AsRef<str> for TwoFACode {
     fn as_ref(&self) -> &str {
         &self.0
