@@ -18,7 +18,7 @@ jobs:
     services:
       postgres:
         # Docker Hub image
-        image: postgres:15.2-alpine
+        image: postgres:17.6-alpine
         # Environment variables scoped only for the `postgres` element
         env:
           POSTGRES_USER: postgres
@@ -28,7 +28,7 @@ jobs:
         ports:
           - 5432:5432
       redis:
-        image: redis:7.0-alpine
+        image: redis:8.2-alpine
         ports:
           - 6379:6379
 
@@ -63,6 +63,7 @@ jobs:
         run: |
           export AUTH_SERVICE_IP=localhost
           export JWT_SECRET=secret
+          export DATABASE_URL=postgres://postgres:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432
           cargo build --verbose
           cargo test --verbose
 
