@@ -6,6 +6,7 @@ use crate::{
     AppState,
 };
 
+#[tracing::instrument(name = "Signup", skip_all, err(Debug))]
 pub async fn signup<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>(
     state: State<
         AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>,

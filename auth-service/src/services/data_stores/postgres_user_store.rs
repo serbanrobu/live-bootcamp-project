@@ -26,6 +26,7 @@ impl PostgresUserStore {
 
 #[async_trait]
 impl UserStore for PostgresUserStore {
+    #[tracing::instrument(name = "Adding user to PostgreSQL", skip_all)]
     async fn add_user(&mut self, user: User) -> Result<(), UserStoreError> {
         let password_hash = compute_password_hash(user.password.into())
             .await
@@ -51,6 +52,7 @@ impl UserStore for PostgresUserStore {
         Ok(())
     }
 
+    #[tracing::instrument(name = "Retrieving user from PostgreSQL", skip_all)]
     async fn get_user(&self, email: &Email) -> Result<User, UserStoreError> {
         let requires_2fa = sqlx::query_scalar!(
             "SELECT requires_2fa FROM users WHERE email = $1",
@@ -64,6 +66,7 @@ impl UserStore for PostgresUserStore {
         Ok(User::new(email.clone(), Default::default(), requires_2fa))
     }
 
+    #[tracing::instrument(name = "Validating user credentials in PostgreSQL", skip_all)]
     async fn validate_user(
         &self,
         email: &Email,
@@ -84,34 +87,44 @@ impl UserStore for PostgresUserStore {
     }
 }
 
+#[tracing::instrument(name = "Verify password hash", skip_all)]
 async fn verify_password_hash(
     expected_password_hash: String,
     password_candidate: String,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let current_span: tracing::Span = tracing::Span::current();
+
     task::spawn_blocking(move || {
-        let expected_password_hash = PasswordHash::new(&expected_password_hash)?;
+        current_span.in_scope(|| {
+            let expected_password_hash = PasswordHash::new(&expected_password_hash)?;
 
-        Argon2::default()
-            .verify_password(password_candidate.as_bytes(), &expected_password_hash)?;
+            Argon2::default()
+                .verify_password(password_candidate.as_bytes(), &expected_password_hash)?;
 
-        Ok(())
+            Ok(())
+        })
     })
     .await?
 }
 
+#[tracing::instrument(name = "Computing password hash", skip_all)]
 async fn compute_password_hash(password: String) -> Result<String, Box<dyn Error + Send + Sync>> {
+    let current_span: tracing::Span = tracing::Span::current();
+
     task::spawn_blocking(move || {
-        let salt: SaltString = SaltString::generate(&mut OsRng);
+        current_span.in_scope(|| {
+            let salt: SaltString = SaltString::generate(&mut OsRng);
 
-        let password_hash = Argon2::new(
-            Algorithm::Argon2id,
-            Version::V0x13,
-            Params::new(15000, 2, 1, None)?,
-        )
-        .hash_password(password.as_bytes(), &salt)?
-        .to_string();
+            let password_hash = Argon2::new(
+                Algorithm::Argon2id,
+                Version::V0x13,
+                Params::new(15000, 2, 1, None)?,
+            )
+            .hash_password(password.as_bytes(), &salt)?
+            .to_string();
 
-        Ok(password_hash)
+            Ok(password_hash)
+        })
     })
     .await?
 }
