@@ -15,7 +15,8 @@ use crate::helpers::TestApp;
 #[test_context(TestApp)]
 #[tokio::test]
 async fn should_return_200_if_valid_jwt_cookie(app: &mut TestApp) {
-    let token = generate_auth_token(&Email::parse(FreeEmail().fake()).unwrap()).unwrap();
+    let token =
+        generate_auth_token(&Email::parse(FreeEmail().fake::<String>().into()).unwrap()).unwrap();
 
     let cookie = create_auth_cookie(token.clone());
 
@@ -33,7 +34,8 @@ async fn should_return_200_if_valid_jwt_cookie(app: &mut TestApp) {
 #[test_context(TestApp)]
 #[tokio::test]
 async fn should_return_400_if_logout_called_twice_in_a_row(app: &mut TestApp) {
-    let cookie = generate_auth_cookie(&Email::parse(FreeEmail().fake()).unwrap()).unwrap();
+    let cookie =
+        generate_auth_cookie(&Email::parse(FreeEmail().fake::<String>().into()).unwrap()).unwrap();
 
     app.cookie_jar.add_cookie_str(
         &format!("{cookie}; HttpOnly; SameSite=Lax; Secure; Path=/"),

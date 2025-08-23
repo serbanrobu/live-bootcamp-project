@@ -4,6 +4,7 @@ use auth_service::{
     utils::constants::JWT_COOKIE_NAME,
     ErrorResponse,
 };
+use secrecy::ExposeSecret;
 use test_context::test_context;
 
 use crate::helpers::{get_random_email, TestApp};
@@ -43,10 +44,10 @@ async fn should_return_200_if_valid_credentials_and_2fa_disabled(app: &mut TestA
 #[test_context(TestApp)]
 #[tokio::test]
 async fn should_return_206_if_valid_credentials_and_2fa_enabled(app: &mut TestApp) {
-    let random_email = Email::parse(get_random_email()).unwrap();
+    let random_email = Email::parse(get_random_email().into()).unwrap();
 
     let signup_body = serde_json::json!({
-        "email": random_email,
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
         "requires2FA": true
     });
@@ -56,7 +57,7 @@ async fn should_return_206_if_valid_credentials_and_2fa_enabled(app: &mut TestAp
     assert_eq!(response.status().as_u16(), 201);
 
     let login_body = serde_json::json!({
-        "email": random_email,
+        "email": random_email.as_ref().expose_secret(),
         "password": "password123",
     });
 
@@ -80,7 +81,10 @@ async fn should_return_206_if_valid_credentials_and_2fa_enabled(app: &mut TestAp
 
     drop(two_fa_code_store);
 
-    assert_eq!(json_body.login_attempt_id, login_attempt_id.as_ref());
+    assert_eq!(
+        json_body.login_attempt_id,
+        login_attempt_id.as_ref().expose_secret()
+    );
 }
 
 #[test_context(TestApp)]

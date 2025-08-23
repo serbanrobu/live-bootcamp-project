@@ -1,5 +1,6 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse};
 use axum_extra::extract::CookieJar;
+use secrecy::SecretString;
 
 use crate::{
     domain::{AuthAPIError, BannedTokenStore},
@@ -18,7 +19,7 @@ where
     BannedTokenStoreImpl: BannedTokenStore,
 {
     let cookie = jar.get(JWT_COOKIE_NAME).ok_or(AuthAPIError::MissingToken)?;
-    let token = cookie.value().to_owned();
+    let token: SecretString = cookie.value().into();
 
     validate_token(&token, &state.banned_token_store)
         .await

@@ -1,42 +1,38 @@
-use std::fmt;
-
 use color_eyre::eyre::{eyre, Result};
+use secrecy::{ExposeSecret, SecretString};
 use validator::ValidateLength;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Password(String);
+#[derive(Clone, Debug)]
+pub struct Password(SecretString);
 
 impl Password {
-    pub fn parse(password: String) -> Result<Self> {
-        if !password.validate_length(Some(8), Some(64), None) {
-            return Err(eyre!("{password} is not a valid password"));
+    pub fn parse(password: SecretString) -> Result<Self> {
+        if !password
+            .expose_secret()
+            .validate_length(Some(8), Some(64), None)
+        {
+            return Err(eyre!("Failed to parse string to a Password type"));
         }
 
         Ok(Self(password))
     }
 }
 
-impl AsRef<str> for Password {
-    fn as_ref(&self) -> &str {
+impl AsRef<SecretString> for Password {
+    fn as_ref(&self) -> &SecretString {
         &self.0
     }
 }
 
 impl Default for Password {
     fn default() -> Self {
-        Self("\0\0\0\0\0\0\0\0".to_owned())
+        Self("\0\0\0\0\0\0\0\0".into())
     }
 }
 
-impl From<Password> for String {
-    fn from(value: Password) -> Self {
-        value.0
-    }
-}
-
-impl fmt::Display for Password {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+impl PartialEq for Password {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.expose_secret() == other.0.expose_secret()
     }
 }
 
@@ -50,8 +46,8 @@ mod tests {
 
     #[quickcheck]
     fn should_parse_valid_password() -> bool {
-        let email = Password(8..65).fake();
-        Password::parse(email).is_ok()
+        let email: String = Password(8..65).fake();
+        Password::parse(email.into()).is_ok()
     }
 
     #[quickcheck]
@@ -60,11 +56,11 @@ mod tests {
             return TestResult::discard();
         }
 
-        TestResult::from_bool(Password::parse(password).is_err())
+        TestResult::from_bool(Password::parse(password.into()).is_err())
     }
 
     #[test]
     fn should_parse_default_password() {
-        assert!(Password::parse(Password::default().into()).is_ok())
+        assert!(Password::parse(Password::default().as_ref().to_owned()).is_ok())
     }
 }

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use color_eyre::eyre::{eyre, Context, Report, Result};
-use serde::Serialize;
+use secrecy::{ExposeSecret, SecretString};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -41,8 +41,8 @@ impl PartialEq for UserStoreError {
 
 #[async_trait]
 pub trait BannedTokenStore {
-    async fn add_token(&mut self, token: String) -> Result<(), BannedTokenStoreError>;
-    async fn contains_token(&self, token: &str) -> Result<bool, BannedTokenStoreError>;
+    async fn add_token(&mut self, token: SecretString) -> Result<(), BannedTokenStoreError>;
+    async fn contains_token(&self, token: &SecretString) -> Result<bool, BannedTokenStoreError>;
 }
 
 #[derive(Debug, Error)]
@@ -86,40 +86,42 @@ impl PartialEq for TwoFACodeStoreError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct LoginAttemptId(String);
+#[derive(Debug, Clone)]
+pub struct LoginAttemptId(SecretString);
 
 impl LoginAttemptId {
-    pub fn parse(id: String) -> Result<Self> {
-        Uuid::parse_str(&id).wrap_err("Invalid login attempt id")?;
+    pub fn parse(id: SecretString) -> Result<Self> {
+        Uuid::parse_str(id.expose_secret()).wrap_err("Invalid login attempt id")?;
         Ok(Self(id))
-    }
-}
-
-impl From<LoginAttemptId> for String {
-    fn from(value: LoginAttemptId) -> Self {
-        value.0
     }
 }
 
 impl Default for LoginAttemptId {
     fn default() -> Self {
-        Self(Uuid::new_v4().to_string())
+        Self(Uuid::new_v4().to_string().into())
     }
 }
 
-impl AsRef<str> for LoginAttemptId {
-    fn as_ref(&self) -> &str {
+impl AsRef<SecretString> for LoginAttemptId {
+    fn as_ref(&self) -> &SecretString {
         &self.0
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct TwoFACode(String);
+impl PartialEq for LoginAttemptId {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.expose_secret() == other.0.expose_secret()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TwoFACode(SecretString);
 
 impl TwoFACode {
-    pub fn parse(code: String) -> Result<Self> {
-        if code.len() != 6 || !code.chars().all(|c| c.is_ascii_digit()) {
+    pub fn parse(code: SecretString) -> Result<Self> {
+        if code.expose_secret().len() != 6
+            || !code.expose_secret().chars().all(|c| c.is_ascii_digit())
+        {
             return Err(eyre!("Invalid 2FA code"));
         }
 
@@ -129,18 +131,18 @@ impl TwoFACode {
 
 impl Default for TwoFACode {
     fn default() -> Self {
-        Self(format!("{:06}", rand::random_range(0..=999999)))
+        Self(format!("{:06}", rand::random_range(0..=999999)).into())
     }
 }
 
-impl From<TwoFACode> for String {
-    fn from(value: TwoFACode) -> Self {
-        value.0
-    }
-}
-
-impl AsRef<str> for TwoFACode {
-    fn as_ref(&self) -> &str {
+impl AsRef<SecretString> for TwoFACode {
+    fn as_ref(&self) -> &SecretString {
         &self.0
+    }
+}
+
+impl PartialEq for TwoFACode {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.expose_secret() == other.0.expose_secret()
     }
 }

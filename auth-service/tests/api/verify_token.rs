@@ -4,6 +4,7 @@ use auth_service::{
     ErrorResponse,
 };
 use fake::{faker::internet::en::FreeEmail, Fake};
+use secrecy::ExposeSecret;
 use test_context::test_context;
 
 use crate::helpers::TestApp;
@@ -11,10 +12,11 @@ use crate::helpers::TestApp;
 #[test_context(TestApp)]
 #[tokio::test]
 async fn should_return_200_valid_token(app: &mut TestApp) {
-    let token = generate_auth_token(&Email::parse(FreeEmail().fake()).unwrap()).unwrap();
+    let token =
+        generate_auth_token(&Email::parse(FreeEmail().fake::<String>().into()).unwrap()).unwrap();
 
     let verify_token_body = serde_json::json!({
-        "token": token,
+        "token": token.expose_secret(),
     });
 
     let response = app.post_verify_token(&verify_token_body).await;
@@ -24,7 +26,8 @@ async fn should_return_200_valid_token(app: &mut TestApp) {
 #[test_context(TestApp)]
 #[tokio::test]
 async fn should_return_401_if_banned_token(app: &mut TestApp) {
-    let token = generate_auth_token(&Email::parse(FreeEmail().fake()).unwrap()).unwrap();
+    let token =
+        generate_auth_token(&Email::parse(FreeEmail().fake::<String>().into()).unwrap()).unwrap();
 
     let mut banned_token_store = app.banned_token_store.write().await;
 
@@ -33,7 +36,7 @@ async fn should_return_401_if_banned_token(app: &mut TestApp) {
     drop(banned_token_store);
 
     let verify_token_body = serde_json::json!({
-        "token": token,
+        "token": token.expose_secret(),
     });
 
     let response = app.post_verify_token(&verify_token_body).await;

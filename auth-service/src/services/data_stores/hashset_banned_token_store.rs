@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use async_trait::async_trait;
+use secrecy::{ExposeSecret, SecretString};
 
 use crate::domain::{BannedTokenStore, BannedTokenStoreError};
 
@@ -19,13 +20,13 @@ impl<const N: usize> From<[String; N]> for HashsetBannedTokenStore {
 
 #[async_trait]
 impl BannedTokenStore for HashsetBannedTokenStore {
-    async fn add_token(&mut self, token: String) -> Result<(), BannedTokenStoreError> {
-        self.tokens.insert(token);
+    async fn add_token(&mut self, token: SecretString) -> Result<(), BannedTokenStoreError> {
+        self.tokens.insert(token.expose_secret().to_string());
         Ok(())
     }
 
-    async fn contains_token(&self, token: &str) -> Result<bool, BannedTokenStoreError> {
-        Ok(self.tokens.contains(token))
+    async fn contains_token(&self, token: &SecretString) -> Result<bool, BannedTokenStoreError> {
+        Ok(self.tokens.contains(token.expose_secret()))
     }
 }
 
@@ -35,7 +36,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_insert_token() {
-        let token = "qwerty".to_owned();
+        let token: SecretString = "qwerty".into();
         let mut store = HashsetBannedTokenStore::default();
         assert!(store.tokens.is_empty());
 
@@ -44,19 +45,19 @@ mod tests {
             .await
             .expect("should insert token");
 
-        assert!(store.tokens.contains(&token));
+        assert!(store.tokens.contains(token.expose_secret()));
     }
 
     #[tokio::test]
     async fn test_contains_token() {
-        let token = "1234567890".to_owned();
+        let token: SecretString = "1234567890".into();
 
         let store = HashsetBannedTokenStore {
-            tokens: HashSet::from([token.clone()]),
+            tokens: HashSet::from([token.expose_secret().into()]),
         };
 
         assert!(!store
-            .contains_token("0987654321")
+            .contains_token(&"0987654321".into())
             .await
             .expect("should check if the store contains the token"));
 

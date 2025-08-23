@@ -1,39 +1,41 @@
-use std::fmt;
+use std::hash::Hash;
 
 use color_eyre::eyre::{eyre, Result};
-use serde::Serialize;
+use secrecy::{ExposeSecret, SecretString};
 use validator::ValidateEmail;
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize)]
-pub struct Email(String);
+#[derive(Clone, Debug)]
+pub struct Email(SecretString);
 
 impl Email {
-    pub fn parse(email: String) -> Result<Self> {
-        if !email.validate_email() {
-            return Err(eyre!("{email} is not a valid email"));
+    pub fn parse(email: SecretString) -> Result<Self> {
+        if !email.expose_secret().validate_email() {
+            return Err(eyre!("{} is not a valid email", email.expose_secret()));
         }
 
         Ok(Self(email))
     }
 }
 
-impl AsRef<str> for Email {
-    fn as_ref(&self) -> &str {
+impl AsRef<SecretString> for Email {
+    fn as_ref(&self) -> &SecretString {
         &self.0
     }
 }
 
-impl From<Email> for String {
-    fn from(value: Email) -> Self {
-        value.0
+impl PartialEq for Email {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.expose_secret() == other.0.expose_secret()
     }
 }
 
-impl fmt::Display for Email {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+impl Hash for Email {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.expose_secret().hash(state)
     }
 }
+
+impl Eq for Email {}
 
 #[cfg(test)]
 mod tests {
@@ -45,8 +47,8 @@ mod tests {
 
     #[quickcheck]
     fn should_parse_valid_email() -> bool {
-        let email = FreeEmail().fake();
-        Email::parse(email).is_ok()
+        let email: String = FreeEmail().fake();
+        Email::parse(email.into()).is_ok()
     }
 
     #[quickcheck]
@@ -55,6 +57,6 @@ mod tests {
             return TestResult::discard();
         }
 
-        TestResult::from_bool(Email::parse(email).is_err())
+        TestResult::from_bool(Email::parse(email.into()).is_err())
     }
 }

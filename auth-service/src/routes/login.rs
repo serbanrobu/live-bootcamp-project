@@ -1,6 +1,7 @@
 use axum::{extract::State, http::StatusCode, Json};
 use axum_extra::extract::CookieJar;
 use color_eyre::eyre::eyre;
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -83,7 +84,10 @@ where
         .send_email(
             email,
             "Two FA code",
-            &format!("Your two FA code is `{}`.", two_fa_code.as_ref()),
+            &format!(
+                "Your two FA code is `{}`.",
+                two_fa_code.as_ref().expose_secret()
+            ),
         )
         .await
         .map_err(|e| AuthAPIError::UnexpectedError(eyre!(e)))?;
@@ -93,7 +97,7 @@ where
         jar,
         Json(LoginResponse::TwoFactorAuth(TwoFactorAuthResponse {
             message: "2FA required".to_owned(),
-            login_attempt_id: login_attempt_id.into(),
+            login_attempt_id: login_attempt_id.as_ref().expose_secret().to_string(),
         })),
     ))
 }
@@ -115,8 +119,8 @@ async fn handle_no_2fa(
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
-    pub email: String,
-    pub password: String,
+    pub email: SecretString,
+    pub password: SecretString,
 }
 
 #[derive(Debug, Serialize)]

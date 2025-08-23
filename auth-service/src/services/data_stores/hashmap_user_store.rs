@@ -83,22 +83,22 @@ mod tests {
             .expect("should validate user");
 
         store
+            .validate_user(&user.email, &Password::parse("12345678".into()).unwrap())
+            .await
+            .expect_err("should not validate user");
+
+        store
             .validate_user(
-                &user.email,
-                &Password::parse("12345678".to_owned()).unwrap(),
+                &Email::parse(FreeEmail().fake::<String>().into()).unwrap(),
+                &user.password,
             )
             .await
             .expect_err("should not validate user");
 
         store
-            .validate_user(&Email::parse(FreeEmail().fake()).unwrap(), &user.password)
-            .await
-            .expect_err("should not validate user");
-
-        store
             .validate_user(
-                &Email::parse("doe@example.com".to_owned()).unwrap(),
-                &Password::parse("87654321".to_owned()).unwrap(),
+                &Email::parse("doe@example.com".into()).unwrap(),
+                &Password::parse("87654321".into()).unwrap(),
             )
             .await
             .expect_err("should not validate user");
@@ -106,8 +106,8 @@ mod tests {
 
     fn new_example_user() -> User {
         User {
-            email: Email::parse(FreeEmail().fake()).unwrap(),
-            password: Password::parse("********".to_owned()).unwrap(),
+            email: Email::parse(FreeEmail().fake::<String>().into()).unwrap(),
+            password: Password::parse("********".into()).unwrap(),
             requires_2fa: true,
         }
     }
