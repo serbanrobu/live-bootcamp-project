@@ -6,7 +6,7 @@ use crate::{
     AppState,
 };
 
-#[tracing::instrument(name = "Signup", skip_all, err(Debug))]
+#[tracing::instrument(name = "Signup", skip_all)]
 pub async fn signup<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>(
     state: State<
         AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>,
@@ -26,7 +26,7 @@ where
 
     user_store.add_user(user).await.map_err(|e| match e {
         UserStoreError::UserAlreadyExists => AuthAPIError::UserAlreadyExists,
-        _ => AuthAPIError::UnexpectedError,
+        e => AuthAPIError::UnexpectedError(e.into()),
     })?;
 
     drop(user_store);

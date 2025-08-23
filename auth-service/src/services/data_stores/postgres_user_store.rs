@@ -1,11 +1,10 @@
-use std::error::Error;
-
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
 };
 
 use async_trait::async_trait;
+use color_eyre::eyre::Result;
 use sqlx::PgPool;
 use tokio::task;
 
@@ -30,7 +29,7 @@ impl UserStore for PostgresUserStore {
     async fn add_user(&mut self, user: User) -> Result<(), UserStoreError> {
         let password_hash = compute_password_hash(user.password.into())
             .await
-            .map_err(|_| UserStoreError::UnexpectedError)?;
+            .map_err(UserStoreError::UnexpectedError)?;
 
         sqlx::query!(
             "INSERT INTO users VALUES ($1, $2, $3)",
@@ -46,7 +45,7 @@ impl UserStore for PostgresUserStore {
             {
                 UserStoreError::UserAlreadyExists
             }
-            _ => UserStoreError::UnexpectedError,
+            e => UserStoreError::UnexpectedError(e.into()),
         })?;
 
         Ok(())
@@ -60,7 +59,7 @@ impl UserStore for PostgresUserStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|_| UserStoreError::UnexpectedError)?
+        .map_err(|e| UserStoreError::UnexpectedError(e.into()))?
         .ok_or(UserStoreError::UserNotFound)?;
 
         Ok(User::new(email.clone(), Default::default(), requires_2fa))
@@ -78,7 +77,7 @@ impl UserStore for PostgresUserStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|_| UserStoreError::UnexpectedError)?
+        .map_err(|e| UserStoreError::UnexpectedError(e.into()))?
         .ok_or(UserStoreError::UserNotFound)?;
 
         verify_password_hash(password_hash, password.to_string())
@@ -91,7 +90,7 @@ impl UserStore for PostgresUserStore {
 async fn verify_password_hash(
     expected_password_hash: String,
     password_candidate: String,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+) -> Result<()> {
     let current_span: tracing::Span = tracing::Span::current();
 
     task::spawn_blocking(move || {
@@ -108,7 +107,7 @@ async fn verify_password_hash(
 }
 
 #[tracing::instrument(name = "Computing password hash", skip_all)]
-async fn compute_password_hash(password: String) -> Result<String, Box<dyn Error + Send + Sync>> {
+async fn compute_password_hash(password: String) -> Result<String> {
     let current_span: tracing::Span = tracing::Span::current();
 
     task::spawn_blocking(move || {

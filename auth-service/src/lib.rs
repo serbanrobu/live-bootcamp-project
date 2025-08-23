@@ -9,7 +9,7 @@ use axum::{
 };
 use domain::{AuthAPIError, BannedTokenStore, UserStore};
 use redis::{Client, RedisResult};
-use routes::{login, logout, signup, verify_2fa, verify_token};
+use routes::{signup, verify_token};
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tokio::net::TcpListener;
@@ -19,6 +19,7 @@ use utils::constants::AUTH_SERVICE_IP;
 use crate::{
     app_state::AppState,
     domain::{EmailClient, TwoFACodeStore},
+    routes::{login, logout, verify_2fa},
     utils::tracing::{make_span_with_request_id, on_request, on_response},
 };
 
@@ -100,23 +101,39 @@ pub struct ErrorResponse {
 
 impl IntoResponse for AuthAPIError {
     fn into_response(self) -> Response {
+        log_error_chain(&self);
+
         let (status, error_message) = match self {
             AuthAPIError::UserAlreadyExists => (StatusCode::CONFLICT, "User already exists"),
             AuthAPIError::InvalidCredentials => (StatusCode::BAD_REQUEST, "Invalid credentials"),
-            AuthAPIError::UnexpectedError => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Unexpected error")
-            }
             AuthAPIError::IncorrectCredentials => {
                 (StatusCode::UNAUTHORIZED, "Incorrect credentials")
             }
-            AuthAPIError::MissingToken => (StatusCode::BAD_REQUEST, "Missing token"),
-            AuthAPIError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid token"),
+            AuthAPIError::MissingToken => (StatusCode::BAD_REQUEST, "Missing auth token"),
+            AuthAPIError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid auth token"),
+            AuthAPIError::UnexpectedError(_) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "Unexpected error")
+            }
         };
         let body = Json(ErrorResponse {
             error: error_message.to_string(),
         });
         (status, body).into_response()
     }
+}
+
+fn log_error_chain(e: &(dyn Error + 'static)) {
+    let separator =
+        "\n-----------------------------------------------------------------------------------\n";
+    let mut report = format!("{}{:?}\n", separator, e);
+    let mut current = e.source();
+    while let Some(cause) = current {
+        let str = format!("Caused by:\n\n{:?}", cause);
+        report = format!("{}\n{}", report, str);
+        current = cause.source();
+    }
+    report = format!("{}\n{}", report, separator);
+    tracing::error!("{}", report);
 }
 
 pub async fn get_postgres_pool(url: &str) -> Result<PgPool, sqlx::Error> {

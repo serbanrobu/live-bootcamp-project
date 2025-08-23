@@ -1,5 +1,6 @@
 use axum::{extract::State, http::StatusCode, Json};
 use axum_extra::extract::CookieJar;
+use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -12,6 +13,7 @@ use crate::{
     AppState,
 };
 
+#[tracing::instrument(name = "Login", skip_all)]
 pub async fn login<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>(
     State(state): State<
         AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>,
@@ -56,6 +58,7 @@ where
     }
 }
 
+#[tracing::instrument(name = "Handle 2FA", skip_all)]
 async fn handle_2fa<TwoFACodeStoreImpl, EmailClientImpl>(
     email: &Email,
     two_fa_code_store: &TwoFACodeStoreType<TwoFACodeStoreImpl>,
@@ -72,7 +75,7 @@ where
 
     lock.add_code(email.clone(), login_attempt_id.clone(), two_fa_code.clone())
         .await
-        .map_err(|_| AuthAPIError::UnexpectedError)?;
+        .map_err(|e| AuthAPIError::UnexpectedError(e.into()))?;
 
     drop(lock);
 
@@ -83,7 +86,7 @@ where
             &format!("Your two FA code is `{}`.", two_fa_code.as_ref()),
         )
         .await
-        .map_err(|_| AuthAPIError::UnexpectedError)?;
+        .map_err(|e| AuthAPIError::UnexpectedError(eyre!(e)))?;
 
     Ok((
         StatusCode::PARTIAL_CONTENT,
@@ -95,11 +98,12 @@ where
     ))
 }
 
+#[tracing::instrument(name = "Handle no 2FA", skip_all)]
 async fn handle_no_2fa(
     email: &Email,
     jar: CookieJar,
 ) -> Result<(StatusCode, CookieJar, Json<LoginResponse>), AuthAPIError> {
-    let auth_cookie = generate_auth_cookie(email).map_err(|_| AuthAPIError::UnexpectedError)?;
+    let auth_cookie = generate_auth_cookie(email).map_err(AuthAPIError::UnexpectedError)?;
     let updated_jar = jar.add(auth_cookie);
 
     Ok((

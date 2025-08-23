@@ -7,6 +7,7 @@ use crate::{
     AppState,
 };
 
+#[tracing::instrument(name = "Verify token", skip_all)]
 pub async fn verify_token<
     UserStoreImpl,
     BannedTokenStoreImpl,

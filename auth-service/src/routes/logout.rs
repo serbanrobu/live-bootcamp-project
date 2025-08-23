@@ -7,6 +7,7 @@ use crate::{
     AppState,
 };
 
+#[tracing::instrument(name = "Logout", skip_all)]
 pub async fn logout<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>(
     State(state): State<
         AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>,
@@ -29,7 +30,7 @@ where
     banned_token_store
         .add_token(token)
         .await
-        .map_err(|_| AuthAPIError::UnexpectedError)?;
+        .map_err(|e| AuthAPIError::UnexpectedError(e.into()))?;
 
     drop(banned_token_store);
 

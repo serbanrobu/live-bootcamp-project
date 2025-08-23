@@ -1,14 +1,15 @@
 use std::fmt;
 
+use color_eyre::eyre::{eyre, Result};
 use validator::ValidateLength;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Password(String);
 
 impl Password {
-    pub fn parse(password: String) -> Result<Self, String> {
+    pub fn parse(password: String) -> Result<Self> {
         if !password.validate_length(Some(8), Some(64), None) {
-            return Err(format!("{password} is not a valid password"));
+            return Err(eyre!("{password} is not a valid password"));
         }
 
         Ok(Self(password))

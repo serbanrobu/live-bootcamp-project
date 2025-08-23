@@ -8,6 +8,7 @@ use crate::{
     utils::auth::generate_auth_cookie,
 };
 
+#[tracing::instrument(name = "Verify 2FA", skip_all)]
 pub async fn verify_2fa<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>(
     State(state): State<
         AppState<UserStoreImpl, BannedTokenStoreImpl, TwoFACodeStoreImpl, EmailClientImpl>,
@@ -44,7 +45,7 @@ where
 
     drop(two_fa_code_store);
 
-    let auth_cookie = generate_auth_cookie(&email).map_err(|_| AuthAPIError::UnexpectedError)?;
+    let auth_cookie = generate_auth_cookie(&email).map_err(AuthAPIError::UnexpectedError)?;
     let updated_jar = jar.add(auth_cookie);
     Ok((StatusCode::OK, updated_jar))
 }

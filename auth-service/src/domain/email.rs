@@ -1,5 +1,6 @@
 use std::fmt;
 
+use color_eyre::eyre::{eyre, Result};
 use serde::Serialize;
 use validator::ValidateEmail;
 
@@ -7,9 +8,9 @@ use validator::ValidateEmail;
 pub struct Email(String);
 
 impl Email {
-    pub fn parse(email: String) -> Result<Self, String> {
+    pub fn parse(email: String) -> Result<Self> {
         if !email.validate_email() {
-            return Err(format!("{email} is not a valid email"));
+            return Err(eyre!("{email} is not a valid email"));
         }
 
         Ok(Self(email))
